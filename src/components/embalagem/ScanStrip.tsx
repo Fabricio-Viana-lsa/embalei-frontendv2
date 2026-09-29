@@ -18,7 +18,7 @@ function buildHeadline(
 ): string {
   if (!hasOrder) return "ESCANEIE A CHAVE DA NOTA OU O PEDIDO";
   if (boxScanCount >= volumeCount && volumeCount > 0)
-    return "BIPE A NF-E OU O PEDIDO PARA FINALIZAR";
+    return "TOQUE EM CONFIRMAR VOLUMES PARA FINALIZAR";
   if (volumeCount > 1)
     return `SELECIONE A CAIXA · ${boxScanCount}/${volumeCount} VOLUMES`;
   return "SELECIONE A CAIXA USADA";

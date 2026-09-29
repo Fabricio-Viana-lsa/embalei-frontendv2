@@ -150,7 +150,7 @@ export function EmbalagemClient() {
   const toOrderLookup = (code: string): OrderLookup =>
     isChaveAcesso(code) ? { chaveAcesso: code } : { numeroPedido: code };
 
-  // O pedido aberto é finalizado bipando de novo a NF-e ou o número do pedido.
+  // Reconhece o re-bipe do pedido já aberto (pela NF-e ou pelo número).
   const isOpenOrderCode = (openOrder: ScannedOrder, code: string) =>
     [
       openOrder.chaveAcesso,
@@ -201,11 +201,7 @@ export function EmbalagemClient() {
         );
       } else {
         pushToast(
-<<<<<<< HEAD
-          `Pedido ${carregado.numPedido} aberto · bipe ${carregado.volumeCount} volume(s) e a NF-e ou o pedido para finalizar`,
-=======
           `Pedido ${carregado.numPedido} aberto · selecione as embalagens e toque em "Confirmar volumes"`,
->>>>>>> e9be01f7542beeffc6b4b29053335fb02d3de8ea
           "success"
         );
       }
@@ -280,34 +276,16 @@ export function EmbalagemClient() {
       pushToast("Aguarde a finalização da embalagem atual…", "warn");
       return;
     }
-<<<<<<< HEAD
-    // 2º bipe do MESMO pedido (NF-e ou número): finaliza a sessão aberta.
+    // 2º bipe do MESMO pedido (NF-e ou número): NÃO finaliza mais (evita
+    // finalização acidental por duplo bip). A finalização passa a ser explícita
+    // pelo botão "Confirmar volumes", que valida os campos obrigatórios.
     if (order && isOpenOrderCode(order, code)) {
-      void finalizar();
+      pushToast("Pedido já carregado · use o botão para finalizar.", "warn");
       return;
     }
     const hasSessionInProgress =
       order && order.session.isMine && !order.alreadyPacked;
     if (!hasSessionInProgress) {
-=======
-    if (isChaveAcesso(code)) {
-      // 2º bipe da MESMA NF-e: NÃO finaliza mais (evita finalização acidental
-      // por duplo bip). A finalização passa a ser explícita pelo botão
-      // "Confirmar volumes", que valida os campos obrigatórios.
-      if (order && code === order.chaveAcesso) {
-        pushToast("Pedido já carregado · use o botão para finalizar.", "warn");
-        return;
-      }
-      // Bipou uma NF-e diferente com sessão aberta: bloqueia (operador precisa
-      // finalizar antes de abrir outra).
-      if (order && order.session.isMine && !order.alreadyPacked) {
-        pushToast(
-          "Finalize a embalagem atual antes de bipar outra NF-e.",
-          "error"
-        );
-        return;
-      }
->>>>>>> e9be01f7542beeffc6b4b29053335fb02d3de8ea
       void abrir(code);
       return;
     }
