@@ -1261,18 +1261,11 @@ button { font-family: inherit; }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
 .info-grid > .panel { padding: 18px; min-height: 100%; }
-
-@media (max-width: 720px) {
-  .info-grid { grid-template-columns: 1fr; }
-  /* Mobile: temperatura + etiqueta primeiro, transportadora por último. */
-  .info-grid > .panel:nth-child(1) { order: 2; } /* Transportadora */
-  .info-grid > .panel:nth-child(2) { order: 1; } /* Temperatura + etiqueta */
-}
 
 /* Painel combinado: temperatura no topo, etiqueta embaixo. */
 .delivery-panel {
@@ -1528,10 +1521,10 @@ button { font-family: inherit; }
   align-items: center;
   gap: 10px;
   margin: 0 0 12px;
-  font-size: 12px;
+  font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-weight: 600;
 }
 
@@ -1566,13 +1559,14 @@ button { font-family: inherit; }
   min-height: 0;
   height: auto !important;
   place-items: initial;
+  max-height: 500px !important;
 }
 
 .gif.gif--media .gif-media {
   display: block;
   width: 100%;
   height: auto !important;
-  max-height: none !important;
+  max-height: 500px !important;
   object-fit: contain;
   object-position: center;
   border-radius: 12px;
@@ -1837,35 +1831,206 @@ button { font-family: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+button.temp-forecast--link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--line-2);
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+
+button.temp-forecast--link b {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.temp-forecast--link:hover { color: var(--ink); }
+button.temp-forecast--link:hover b { color: #0559c9; }
+
+.temp-forecast-caret {
+  flex: none;
+  color: var(--brand);
+  transform: rotate(-90deg);
+}
+
+/* Popup da previsão estendida */
+.temp-fc-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 28, 0.4);
+}
+
+.temp-fc-pop {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px rgba(17, 24, 28, 0.25);
+}
+
+.temp-fc-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.temp-fc-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.temp-fc-city {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 1px;
+}
+
+.temp-fc-close {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  background: var(--line-2);
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.temp-fc-close:hover { background: var(--line); }
+
+.temp-fc-empty {
+  padding: 8px 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.temp-fc-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.temp-fc-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  border-top-color: var(--brand);
+  animation: temp-fc-spin 0.7s linear infinite;
+}
+
+@keyframes temp-fc-spin {
+  to { transform: rotate(360deg); }
+}
+
+.temp-fc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.temp-fc-day {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+  border-top: 1px solid var(--line-2);
+}
+
+.temp-fc-day:first-child { border-top: none; }
+
+.temp-fc-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.temp-fc-cond {
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.temp-fc-temps {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.temp-fc-max { font-size: 15px; font-weight: 700; color: #dc2626; }
+.temp-fc-min { font-size: 15px; font-weight: 700; color: #0284c7; }
+
 .carrier {
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 40px 1fr;
   gap: 12px;
   align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--brand-50);
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
 }
 
 .carrier-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #1d4ed8, #3b82f6);
   color: white;
   font-weight: 800;
-  font-size: 22px;
+  font-size: 16px;
   display: grid;
   place-items: center;
   box-shadow: 0 6px 14px rgba(29, 78, 216, .3);
   letter-spacing: -0.02em;
 }
 
-.carrier-info .name { font-weight: 700; font-size: 16px; color: var(--ink); }
+.carrier-info .name { font-weight: 700; font-size: 14px; color: var(--ink); }
 .carrier-info .svc { font-size: 13px; color: var(--ink-2); margin-top: 2px; }
 
 .carrier-info .eta {
-  font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
   color: var(--ink-3);
-  margin-top: 4px;
 }
 
 .carrier-info .eta b { color: var(--ink); font-weight: 600; }
@@ -2133,11 +2298,13 @@ button { font-family: inherit; }
   padding: 4px;
 }
 
-.emb-tile { position: relative; }
+.emb-tile {
+  position: relative;
+}
 
 .emb-tile-add {
   width: 100%;
-  min-height: 60px;
+  min-height: 75px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2210,6 +2377,88 @@ button { font-family: inherit; }
 }
 
 .emb-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.emb-edit {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: none;
+  background: var(--brand);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 111, 238, 0.4);
+  transition: transform 0.08s;
+}
+
+.emb-edit:active { transform: scale(0.9); }
+.emb-edit:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Popup de quantidade da embalagem */
+.emb-qty-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 28, 0.4);
+  animation: embKbGlow 0.16s ease-out;
+}
+
+.emb-qty-pop {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 50px rgba(17, 24, 28, 0.25);
+}
+
+.emb-qty-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.emb-qty-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.emb-qty-input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+.emb-qty-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.emb-qty-cancel,
+.emb-qty-save {
+  flex: 1;
+  justify-content: center;
+}
 
 .emb-kb-foot { display: flex; }
 .emb-confirm {
@@ -2465,10 +2714,10 @@ body.compact .order-code .pid { font-size: 22px; }
   .order-head-row { gap: 10px; }
   .order-code { flex-wrap: wrap; }
   .panel-head { padding: 14px 16px; }
-  .panel-title { font-size: 11px; }
+  .panel-title { font-size: 12px; }
   .gif { aspect-ratio: 4 / 3; max-height: 120px; }
-  .gif--media { aspect-ratio: auto; max-height: 120px; overflow: hidden !important; }
-  .gif.gif--media .gif-media { max-height: 120px !important; object-fit: contain; }
+  .gif--media { aspect-ratio: auto; max-height: 210px; overflow: hidden !important; }
+  .gif.gif--media .gif-media { max-height: 210px !important; object-fit: contain; }
   .gif-caption { font-size: 11px; padding: 4px 2px 0; }
   .actions .kbd, .actions .hint .kbd { display: inline-block; }
   .actions .hint { font-size: 12px; }

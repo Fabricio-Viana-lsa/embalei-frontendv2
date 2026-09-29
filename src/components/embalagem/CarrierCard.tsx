@@ -1,4 +1,3 @@
-import { Icon } from "@/components/icons";
 import type { ScannedCarrier } from "@/types";
 
 function formatDeliveryDate(raw: string | null): string {
@@ -31,25 +30,17 @@ function carrierInitials(name: string | null): string {
 
 export function CarrierCard({ carrier }: { carrier: ScannedCarrier }) {
   return (
-    <div>
-      <h3 className="panel-title">
-        <span className="ic">
-          <Icon.truck width={12} height={12} />
-        </span>
-        Transportadora
-      </h3>
-      <div className="carrier">
-        <div
-          className="carrier-logo"
-          style={{ background: "linear-gradient(135deg, #1d4ed8, #1d4ed8cc)" }}
-        >
-          {carrierInitials(carrier.name)}
-        </div>
-        <div className="carrier-info">
-          <div className="name">{carrier.name ?? "Não informada"}</div>
-          <div className="eta">
-            <b>Entrega</b> · {formatDeliveryDate(carrier.deliveryDate)}
-          </div>
+    <div className="carrier">
+      <div
+        className="carrier-logo"
+        style={{ background: "linear-gradient(135deg, #1d4ed8, #1d4ed8cc)" }}
+      >
+        {carrierInitials(carrier.name)}
+      </div>
+      <div className="carrier-info">
+        <div className="name">{carrier.name ?? "Não informada"}</div>
+        <div className="eta">
+          Entrega · {formatDeliveryDate(carrier.deliveryDate)}
         </div>
       </div>
     </div>

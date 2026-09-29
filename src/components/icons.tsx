@@ -111,4 +111,10 @@ export const Icon = {
       <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
     </svg>
   ),
+  pencil: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2} {...p}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  ),
 };

@@ -65,10 +65,8 @@ export function OrderDetail({ order, picks, onPick }: Props) {
         </div>
       )}
       <div className="info-grid">
-        <div className="panel">
-          <CarrierCard carrier={order.carrier} />
-        </div>
         <div className="panel delivery-panel">
+          <CarrierCard carrier={order.carrier} />
           <TempCard temp={order.temperature ?? PLACEHOLDER_TEMPERATURE} />
           <div className="panel-divider" />
           <LabelGif gifUrl={order.labelGifUrl} />

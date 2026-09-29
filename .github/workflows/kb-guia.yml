@@ -1,0 +1,100 @@
+# Gera a série de guias de um módulo e a cria como RASCUNHOS na Base de
+# Conhecimento — direto, sem arquivo intermediário versionado. Sob demanda por
+# desenho: guia é do zero-ao-fim e não nasce de um merge (decisão 3 do plano;
+# ver base-conhecimento/docs/plano-automacao-artigos.md).
+#
+# Nada vai ao ar sozinho: os artigos nascem rascunho e um humano revisa os
+# textos, insere os prints (📸) e publica — sub-artigos primeiro, home por último.
+#
+# Configuração necessária neste repositório (NADA disso existe hoje aqui):
+#   secrets  CLAUDE_CODE_OAUTH_TOKEN, NEWS_TOKEN
+#   vars     NEWS_PUBLISH_URL, KB_ADMIN_URL
+#   e o GitHub App da Claude instalado na org lojasantoantonio.
+name: Guia de módulo na Base
+
+on:
+  workflow_dispatch:
+    inputs:
+      modulo:
+        description: "Nome curto do módulo (vira raiz dos slugs; ex.: bipagem-de-volumes)"
+        required: true
+      escopo:
+        description: "Onde o módulo vive: caminhos (src/app/embalagem, src/components/embalagem) ou range git (master..feat/x)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kb-guia-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  guia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SISTEMA: embalei
+      GUIA_FILE: .kb-run/guia.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Gerar a série
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          MODULO: ${{ inputs.modulo }}
+          ESCOPO: ${{ inputs.escopo }}
+        run: |
+          set -euo pipefail
+          mkdir -p .kb-run
+          HOJE="$(TZ=America/Sao_Paulo date +%d-%m-%Y)"
+          PROMPT=$(cat <<'EOF'
+          Você está rodando em CI (GitHub Actions), sem humano no loop.
+
+          1. Leia .kb/PROMPT-GUIA-MODULO.md e siga-o à risca.
+          2. O módulo a documentar: MODULO_REAL
+          3. Onde ele vive (caminhos ou range git): ESCOPO_REAL
+          4. Onde o prompt disser ARQUIVO_DE_SAIDA, use: SAIDA_REAL
+          5. Onde disser DATA_DE_HOJE, use: DATA_REAL
+          EOF
+          )
+          PROMPT="${PROMPT//MODULO_REAL/$MODULO}"
+          PROMPT="${PROMPT//ESCOPO_REAL/$ESCOPO}"
+          PROMPT="${PROMPT//SAIDA_REAL/$GUIA_FILE}"
+          PROMPT="${PROMPT//DATA_REAL/$HOJE}"
+
+          claude -p "$PROMPT" \
+            --model opus \
+            --max-turns 60 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+
+      - name: Publicar na Base
+        id: envio
+        env:
+          NEWS_PUBLISH_URL: ${{ vars.NEWS_PUBLISH_URL }}
+          NEWS_TOKEN: ${{ secrets.NEWS_TOKEN }}
+          RUN_ACTOR: ${{ github.actor }}
+        run: node .kb/publicar-guia.mjs
+
+      - name: Resumo
+        if: always()
+        env:
+          CRIADOS: ${{ steps.envio.outputs.created }}
+          SLUGS: ${{ steps.envio.outputs.slugs }}
+          PAINEL: ${{ vars.KB_ADMIN_URL }}
+        run: |
+          { echo "### Série de guias criada como rascunho";
+            echo "- artigos: ${CRIADOS:-0} (${SLUGS:-nenhum})";
+            echo "- revisar e publicar: ${PAINEL} (sub-artigos primeiro, home por último)";
+          } >> "$GITHUB_STEP_SUMMARY"

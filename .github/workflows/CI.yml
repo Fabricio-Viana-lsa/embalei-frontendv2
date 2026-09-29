@@ -1,0 +1,91 @@
+name: CI
+
+# Três portões, todos medidos neste repositório antes de entrarem aqui:
+#
+#   lint       0 erros, 0 avisos  (exit 0)
+#   typecheck  0 erros            (exit 0)
+#   build      6/6 rotas geradas  (exit 0)
+#
+# Antes desta mudança o repo não tinha gate nenhum: o script `lint` existia no
+# package.json mas era `next lint`, sem o ESLint instalado e sem arquivo de
+# config — qualquer job que o chamasse morria em ~1s sem lintar nada. O ESLint 9
+# e o `eslint-config-next` foram instalados junto com este arquivo, e o script
+# virou `eslint` puro (o `next lint` está depreciado no Next 15.5 e foi removido
+# no 16).
+#
+# Não existe job de `test`: não há runner nem um único arquivo `.test`/`.spec` no
+# repositório. Quando houver, o job entra aqui.
+
+on: [pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          # Funciona porque o `package-lock.json` é versionado. O `yarn.lock` que
+          # existe no diretório NÃO é rastreado pelo git, então não chega ao
+          # checkout e não confunde a chave do cache. Se um dia alguém o
+          # comitar, esta linha precisa ser revista.
+          cache: npm
+
+      # `npm ci` e nunca `npm install`: `@heroui/react` e `@heroui/styles` estão
+      # declarados como `"latest"`, e só o lockfile segura a versão.
+      # `--ignore-scripts` pula o `prepare` do husky, que não faz sentido em
+      # runner descartável.
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts
+
+      - name: Lint
+        run: npm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts
+
+      # Roda sem nenhum segredo: as 4 rotas deste app são estáticas (`○` no
+      # relatório do Next) e o cliente do ERP só é chamado em tempo de execução,
+      # no navegador. Se uma rota passar a buscar dados no servidor durante o
+      # build, este job vai exigir a URL da API — e aí o certo é forçar a rota a
+      # dinâmica, não pôr credencial no build.
+      - name: Build
+        run: npm run build

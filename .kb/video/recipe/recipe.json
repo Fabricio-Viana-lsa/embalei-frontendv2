@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "embalei-novidade",
+  "workflow": "pr-to-video",
+  "approved_at": "2026-09-11T15:20:22.606Z",
+  "source_project": "embalei-frontendv2-pr-<numero>",
+  "destination": "knowledge-base-article",
+  "aspect": "1920x1080",
+  "language": "pt-BR",
+  "voice": "94ec497104a04c87904a8aa138d6e46c"
+}

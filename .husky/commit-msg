@@ -1,0 +1,38 @@
+echo 'commit-msg'
+
+if npx --no-install commitlint --edit "$1"; then
+  exit 0
+fi
+
+cat >&2 <<'HELP'
+
+Mensagem fora do padrão do repo. Formato exigido:
+
+  tipo(escopo): assunto no imperativo
+
+  Corpo explicando o quê mudou e por quê (mínimo 20 caracteres).
+
+Exemplo:
+
+  fix(embalagem): impede bipe duplicado do mesmo volume
+
+  O leitor repetia a leitura quando o operador segurava o gatilho e o volume
+  entrava duas vezes na contagem do pedido.
+
+Tipos: feat, fix, refactor, perf, chore, docs, test, style, ci, build, revert.
+Escopo: a rota tocada (login, embalagem), a camada (components, lib, data,
+types, styles, layout, system, manifest) ou ci/deps/build/docs.
+Corpo e escopo sao obrigatorios em todos os tipos.
+
+Para escrever o corpo com conforto, comite sem -m e use o editor:
+
+  git commit
+
+Ou passe -m duas vezes (o segundo -m vira o corpo):
+
+  git commit -m "fix(embalagem): ..." -m "Explicacao do que mudou e por que."
+
+Detalhes e pegadinhas: docs/padrao-de-commits.md
+HELP
+
+exit 1

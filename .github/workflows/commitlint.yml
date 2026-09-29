@@ -1,0 +1,112 @@
+name: Commitlint
+
+# O hook `commit-msg` (husky + commitlint) só roda na máquina de quem commita —
+# e aqui nem isso é garantido: o hook só existe depois de um `npm install` local
+# (é o `prepare` que o instala). Quando o PR é fechado com "Squash and merge", o
+# commit que entra no master usa o TÍTULO DO PR, que nunca passou pelo hook.
+# Este workflow fecha essa brecha validando, com a mesma config
+# (`commitlint.config.js`), a MENSAGEM COMPLETA do squash: título do PR como
+# assunto + descrição do PR como corpo. Como o repo exige corpo (`body-empty`),
+# PR sem descrição reprova aqui. Na prática é o ÚNICO gate garantido do repo.
+#
+# Não existe um CI.yml ao lado deste de propósito: o script `lint` do
+# package.json é `next lint`, mas eslint e eslint-config-next não estão
+# instalados e não há arquivo de config — sem TTY (que é o caso de um `run:`) o
+# comando sai 1 em ~1s sem lintar nada. E não há teste nenhum no repo: nem
+# script, nem runner, nem arquivo. Um job que nasce vermelho é pior que job
+# nenhum. Quando o lint for instalado, o CI.yml entra junto.
+#
+# Pré-requisito no GitHub: em Settings → General → "Pull Requests", o default do
+# squash commit message precisa ser "Pull request title and description". Se
+# estiver como "Pull request title and commit details", o corpo validado aqui não
+# é o corpo que entra no master. Ainda NÃO foi feito neste repositório.
+
+on:
+  pull_request:
+    # `edited` é essencial: cobre a correção do título depois de um job vermelho.
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commitlint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # v7 nos dois: as versões v4 rodam no Node 20, que o GitHub está descontinuando
+      # nos runners.
+      - uses: actions/checkout@v7
+        with:
+          # Histórico completo: o passo de lint dos commits precisa do range base..head.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+          # `cache: npm` funciona aqui porque o package-lock.json está VERSIONADO
+          # (confirmado com `git ls-files | grep lock`, que devolve só ele). O
+          # yarn.lock que existe no disco de quem desenvolve não está rastreado e
+          # não chega ao checkout, então não confunde a chave de cache.
+          cache: npm
+
+      # `npm ci`, nunca `npm install`: `@heroui/react` e `@heroui/styles` estão
+      # declarados como "latest" no package.json, então só o lockfile segura a
+      # versão — um install livre traz release nova sem ninguém pedir.
+      # --ignore-scripts pula o `prepare` (husky): instalar hook no runner não
+      # serve para nada aqui.
+      # O commitlint precisa cair no node_modules local para o `extends` do
+      # commitlint.config.js resolver — por isso a instalação é dentro do repo.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Monta o arquivo exatamente como o git veria a mensagem do squash: assunto,
+      # linha em branco, corpo. Passa por stdin (e não `--edit`) de propósito:
+      # `--edit` remove linhas que começam com `#`, e descrição de PR usa `#` para
+      # títulos markdown — seriam apagadas antes do lint.
+      - name: Lint PR (título + descrição = mensagem do squash)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > "$RUNNER_TEMP/pr-message.txt"
+          echo "--- mensagem validada ---"
+          cat "$RUNNER_TEMP/pr-message.txt"
+          echo "-------------------------"
+          if npx commitlint --config commitlint.config.js < "$RUNNER_TEMP/pr-message.txt"; then
+            exit 0
+          fi
+          cat >&2 <<'HELP'
+
+          O título e a descrição do PR formam a mensagem do commit de squash, então
+          seguem o mesmo padrão de um commit:
+
+            tipo(escopo): assunto no imperativo   <- título do PR
+                                                  <- descrição do PR = corpo (obrigatório)
+            O quê mudou e por quê, com no mínimo 20 caracteres.
+
+          Corrija o título e/ou a descrição do PR e este job roda de novo sozinho
+          (o gatilho `edited` cobre isso).
+
+          Detalhes: docs/padrao-de-commits.md
+          HELP
+          exit 1
+
+      # Valida também os commits do PR, cobrindo o caso de merge sem squash
+      # (merge commit / rebase preservam as mensagens originais).
+      # Não bloqueia, e aqui isso é ainda mais necessário do que de costume: os 7
+      # commits que existem no repositório são anteriores ao padrão, em texto
+      # livre e sem escopo ("removido o beep da embalagem"). O gate vale daqui
+      # para frente; exigir conformidade do range reprovaria qualquer PR que
+      # partisse do que já está no master.
+      # Para exigir conformidade em todos os commits, remova o continue-on-error.
+      - name: Lint commits do PR
+        continue-on-error: true
+        run: |
+          npx commitlint --config commitlint.config.js \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}"

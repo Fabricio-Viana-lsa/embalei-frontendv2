@@ -22,6 +22,13 @@ export interface OrderCarrier {
   color: string;
 }
 
+export interface ForecastDay {
+  date: string; // "YYYY-MM-DD"
+  min: number | null;
+  max: number | null;
+  condition: string;
+}
+
 export interface OrderTemperature {
   city: string;
   value: number;
