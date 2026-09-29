@@ -14,6 +14,7 @@ import {
   liberarEstacao,
   type ApiEmbalagem,
   type EmbaleiSession,
+  type OrderLookup,
 } from "@/lib/api";
 import { Icon } from "@/components/icons";
 import { TopBar } from "./TopBar";
@@ -140,13 +141,33 @@ export function EmbalagemClient() {
     else toast(msg, opts);
   };
 
-  // A chave de acesso da NF-e tem 44 dígitos — distingue "bipar o pedido"
-  // (consulta a IDWorks) de "bipar um item" (confere SKU do pedido aberto).
+  // A chave de acesso da NF-e tem 44 dígitos; qualquer outro código bipado é
+  // tratado como número do pedido (IDOrder, código com prefixo ou número do
+  // marketplace) na consulta à IDWorks.
   const isChaveAcesso = (code: string) => /^\d{44}$/.test(code);
 
-  const abrir = async (chaveAcesso: string) => {
+  const toOrderLookup = (code: string): OrderLookup =>
+    isChaveAcesso(code) ? { chaveAcesso: code } : { numeroPedido: code };
+
+  // O pedido aberto é finalizado bipando de novo a NF-e ou o número do pedido.
+  const isOpenOrderCode = (openOrder: ScannedOrder, code: string) =>
+    [
+      openOrder.chaveAcesso,
+      openOrder.idOrder,
+      openOrder.numPedido,
+      openOrder.legacyNumPedido,
+    ].some((orderCode) => orderCode?.toUpperCase() === code.toUpperCase());
+
+  // Prefere a chave da NF-e (identificador único); sem NF-e, usa o IDOrder,
+  // que a busca por número da IDWorks casa de forma exata.
+  const openOrderLookup = (openOrder: ScannedOrder): OrderLookup =>
+    openOrder.chaveAcesso
+      ? { chaveAcesso: openOrder.chaveAcesso }
+      : { numeroPedido: openOrder.idOrder };
+
+  const abrir = async (code: string) => {
     if (!session || scanning) return;
-    setScannedKey(chaveAcesso);
+    setScannedKey(code);
     setScanError(null);
     setScanning(true);
     setBoxScanCount(0);
@@ -155,7 +176,7 @@ export function EmbalagemClient() {
     try {
       const carregado = await abrirEmbalagem({
         workstationId: session.workstationId,
-        chaveAcesso,
+        ...toOrderLookup(code),
       });
       setOrder(carregado);
       setCommentsOpen(Boolean(carregado.orderComments));
@@ -180,7 +201,7 @@ export function EmbalagemClient() {
         );
       } else {
         pushToast(
-          `Pedido ${carregado.numPedido} aberto · bipe ${carregado.volumeCount} volume(s) e a NF-e para finalizar`,
+          `Pedido ${carregado.numPedido} aberto · bipe ${carregado.volumeCount} volume(s) e a NF-e ou o pedido para finalizar`,
           "success"
         );
       }
@@ -209,7 +230,7 @@ export function EmbalagemClient() {
     try {
       const result = await finalizarEmbalagem({
         workstationId: session.workstationId,
-        chaveAcesso: order.chaveAcesso,
+        ...openOrderLookup(order),
         volumeCount: boxScanCount,
         volumeCodes: boxScanCodes,
       });
@@ -247,30 +268,24 @@ export function EmbalagemClient() {
       pushToast("Aguarde a finalização da embalagem atual…", "warn");
       return;
     }
-    if (isChaveAcesso(code)) {
-      // 2º bipe da MESMA NF-e: finaliza a sessão aberta.
-      if (order && code === order.chaveAcesso) {
-        void finalizar();
-        return;
-      }
-      // Bipou uma NF-e diferente com sessão aberta: bloqueia (operador precisa
-      // finalizar antes de abrir outra).
-      if (order && order.session.isMine && !order.alreadyPacked) {
-        pushToast(
-          "Finalize a embalagem atual antes de bipar outra NF-e.",
-          "error"
-        );
-        return;
-      }
+    // 2º bipe do MESMO pedido (NF-e ou número): finaliza a sessão aberta.
+    if (order && isOpenOrderCode(order, code)) {
+      void finalizar();
+      return;
+    }
+    const hasSessionInProgress =
+      order && order.session.isMine && !order.alreadyPacked;
+    if (!hasSessionInProgress) {
       void abrir(code);
       return;
     }
-    if (!order) {
-      pushToast("Bipe a chave de acesso da NF-e do pedido.", "error");
+    // Bipou outra NF-e com sessão aberta: bloqueia (operador precisa finalizar
+    // antes de abrir outra). Os volumes não são mais bipados — o operador
+    // escolhe a embalagem usada no teclado.
+    if (isChaveAcesso(code)) {
+      pushToast("Finalize a embalagem atual antes de bipar outra NF-e.", "error");
       return;
     }
-    // O leitor só processa a chave da NF-e (abrir e finalizar). Os volumes não
-    // são mais bipados — o operador escolhe a embalagem usada no teclado.
     pushToast("Selecione a embalagem do volume no teclado.", "warn");
   };
 

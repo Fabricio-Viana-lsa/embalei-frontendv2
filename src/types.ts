@@ -90,7 +90,8 @@ export interface ScannedOrder {
   idOrder: string;
   numPedido: string;
   legacyNumPedido: string;
-  chaveAcesso: string;
+  // Nula quando o pedido foi aberto pelo número e ainda não tem NF-e.
+  chaveAcesso: string | null;
   dataPedido: string | null;
   customer: string | null;
   orderComments: string | null;

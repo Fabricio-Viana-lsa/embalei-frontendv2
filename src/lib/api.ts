@@ -119,14 +119,17 @@ export async function ocuparEstacao(input: {
   };
 }
 
-// 1º bipe da NF-e: abre uma sessão de embalagem para o pedido. O backend
-// devolve os dados do pedido (IDWorks) + estado da sessão (open/closed/busy/
+// Identifica o pedido bipado: chave de acesso da NF-e (44 dígitos) ou número
+// do pedido (IDOrder, código com prefixo ou número do marketplace).
+export type OrderLookup = { chaveAcesso: string } | { numeroPedido: string };
+
+// 1º bipe da NF-e (ou do número do pedido): abre uma sessão de embalagem para
+// o pedido. O backend devolve os dados do pedido (IDWorks) + estado da sessão (open/closed/busy/
 // already-packed). NÃO registra a embalagem ainda — isso acontece no
 // `finalizarEmbalagem` (2º bipe).
-export async function abrirEmbalagem(input: {
-  workstationId: string;
-  chaveAcesso: string;
-}): Promise<ScannedOrder> {
+export async function abrirEmbalagem(
+  input: { workstationId: string } & OrderLookup,
+): Promise<ScannedOrder> {
   const response = await fetch(`${ESTACOES_BASE}/pedidos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -136,16 +139,18 @@ export async function abrirEmbalagem(input: {
   return (await response.json()) as ScannedOrder;
 }
 
-// 2º bipe da NF-e: fecha a sessão aberta com o total de volumes contados e
-// grava a embalagem (com duration_seconds calculado pelo backend).
-export async function finalizarEmbalagem(input: {
-  workstationId: string;
-  chaveAcesso: string;
-  volumeCount: number;
-  // Códigos (EAN das embalagens) bipados em cada volume, na ordem em que foram
-  // lidos. O backend cruza com a tabela de embalagens para o relatório.
-  volumeCodes: string[];
-}): Promise<FinalizeResult> {
+// 2º bipe da NF-e (ou do número do pedido): fecha a sessão aberta com o total
+// de volumes contados e grava a embalagem (com duration_seconds calculado pelo
+// backend).
+export async function finalizarEmbalagem(
+  input: {
+    workstationId: string;
+    volumeCount: number;
+    // Códigos (EAN das embalagens) bipados em cada volume, na ordem em que
+    // foram lidos. O backend cruza com a tabela de embalagens para o relatório.
+    volumeCodes: string[];
+  } & OrderLookup,
+): Promise<FinalizeResult> {
   const response = await fetch(`${ESTACOES_BASE}/pedidos/finalizar`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
