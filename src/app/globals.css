@@ -99,9 +99,12 @@ button { font-family: inherit; }
    LOGIN  (scoped under .login-root)
    ============================================================ */
 .login-root {
-  min-height: 100vh;
+  /* Altura travada na tela: o painel do formulário rola sozinho quando a
+     lista de estações é grande, e o visual da esquerda fica parado. */
+  height: 100vh;
+  height: 100dvh;
   display: grid;
-  grid-template-columns: 1fr 520px;
+  grid-template-columns: 1fr 560px;
 }
 
 .login-root .visual {
@@ -280,12 +283,14 @@ button { font-family: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 56px 56px;
+  padding: 48px 56px 24px;
   position: relative;
+  overflow-y: auto;
 }
 
-.login-root .form-card { width: 100%; max-width: 380px; }
+/* margin auto centraliza quando cabe e, diferente de justify-content:center,
+   não corta o topo quando o conteúdo passa da altura da tela. */
+.login-root .form-card { width: 100%; max-width: 420px; margin-block: auto; }
 
 .login-root .form-title {
   font-size: 26px;
@@ -442,16 +447,63 @@ button { font-family: inherit; }
   min-width: var(--trigger-width, 320px);
 }
 
+.login-root .station-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.login-root .station-counts {
+  display: inline-flex;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.login-root .station-counts .count-free { color: #16a34a; }
+.login-root .station-counts .count-busy { color: var(--ink-3); }
+
+.login-root .station-search { margin-bottom: 10px; }
+.login-root .station-search input { height: 42px; }
+.login-root .station-search input::-webkit-search-cancel-button { cursor: pointer; }
+
+/* Lista com rolagem própria. As sombras no topo/base só aparecem quando há
+   conteúdo escondido naquele lado (fundos "local" × "scroll"). */
+.login-root .station-list {
+  max-height: clamp(220px, 42vh, 440px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -6px;
+  padding: 6px;
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--panel) 30%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--panel) 70%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(17, 24, 28, .14), transparent) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(17, 24, 28, .14), transparent) bottom / 100% 10px no-repeat scroll;
+}
+
+.login-root .station-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-3);
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+
 .login-root .station-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .login-root .station-card {
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  padding: 18px 18px;
+  padding: 14px 14px;
   cursor: pointer;
   background: white;
   text-align: left;
@@ -489,7 +541,12 @@ button { font-family: inherit; }
 }
 
 .login-root .station-card.selected .num { background: var(--brand); color: white; }
-.login-root .station-card .info { display: flex; flex-direction: column; line-height: 1.2; }
+.login-root .station-card .num { flex-shrink: 0; }
+/* min-width:0 deixa o texto encolher e cortar com reticências em vez de
+   estourar o card. */
+.login-root .station-card .info { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; flex: 1; }
+.login-root .station-card .name,
+.login-root .station-card .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .login-root .station-card .name { font-weight: 600; font-size: 13px; }
 .login-root .station-card .sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
 .login-root .station-card.busy { opacity: .55; cursor: not-allowed; }
@@ -498,6 +555,7 @@ button { font-family: inherit; }
 .login-root .dot {
   width: 7px;
   height: 7px;
+  flex-shrink: 0;
   border-radius: 50%;
   margin-left: auto;
   background: var(--success);
@@ -576,10 +634,9 @@ button { font-family: inherit; }
 .login-root .small a:hover { text-decoration: underline; }
 
 .login-root .build {
-  position: absolute;
-  bottom: 24px;
-  left: 56px;
-  right: 56px;
+  width: 100%;
+  margin-top: 32px;
+  flex-shrink: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--ink-3);
@@ -589,13 +646,17 @@ button { font-family: inherit; }
 }
 
 @media (max-width: 980px) {
-  .login-root { grid-template-columns: 1fr; }
+  /* Empilhado: a página inteira rola, não só o formulário. */
+  .login-root { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  .login-root .form-side { overflow: visible; }
+  .login-root .form-card { margin-block: 0; max-width: 520px; }
+  .login-root .station-list { max-height: 52vh; }
   .login-root .visual { padding: 32px; min-height: 280px; }
   .login-root .visual-body { max-width: none; gap: 18px; }
   .login-root h1 { font-size: 32px; }
   .login-root .mini-scanner { display: none; }
   .login-root .form-side { padding: 32px; align-items: flex-start; padding-top: 40px; }
-  .login-root .build { position: static; padding: 16px 0 0; }
+  .login-root .build { padding: 16px 0 0; }
 }
 
 @media (max-width: 560px) {
@@ -607,7 +668,7 @@ button { font-family: inherit; }
   .login-root .form-title { font-size: 22px; }
   .login-root .form-sub { font-size: 13px; margin-bottom: 22px; }
   .login-root .field input, .login-root .field select { height: 46px; }
-  .login-root .station-card { padding: 16px; gap: 12px; }
+  .login-root .station-card { padding: 12px; gap: 10px; }
   .login-root .station-card .num { width: 28px; height: 28px; font-size: 13px; }
   .login-root .station-card .name { font-size: 12px; }
   .login-root .station-card .sub { font-size: 10px; }

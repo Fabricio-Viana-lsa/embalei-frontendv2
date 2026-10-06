@@ -29,6 +29,12 @@ export const Icon = {
       <path d="M17 4l.01 2" />
     </svg>
   ),
+  search: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...p}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  ),
   chev: (p: IconProps) => (
     <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2} {...p}>
       <polyline points="6 9 12 15 18 9" />

@@ -5,12 +5,13 @@ import type { ApiEstacao } from "@/lib/api";
 
 interface Props {
   station: ApiEstacao;
-  index: number;
+  // Número da estação no cadastro (01, 02…), estável mesmo com a lista ordenada.
+  number: number;
   selected: boolean;
   onSelect: (id: string) => void;
 }
 
-export function StationCard({ station, index, selected, onSelect }: Props) {
+export function StationCard({ station, number, selected, onSelect }: Props) {
   const busy = station.status === "em_uso";
   const className =
     "station-card" + (selected ? " selected" : "") + (busy ? " busy" : "");
@@ -31,10 +32,10 @@ export function StationCard({ station, index, selected, onSelect }: Props) {
         if (isSelected) onSelect(station.id);
       }}
     >
-      <span className="num">{String(index).padStart(2, "0")}</span>
+      <span className="num">{String(number).padStart(2, "0")}</span>
       <span className="info">
-        <span className="name">{station.name}</span>
-        <span className="sub">{subtitle}</span>
+        <span className="name" title={station.name}>{station.name}</span>
+        <span className="sub" title={subtitle}>{subtitle}</span>
       </span>
       <span className="dot" title={busy ? "ocupada" : "disponível"} />
     </ToggleButton>

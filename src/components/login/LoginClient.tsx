@@ -19,7 +19,7 @@ import {
   type ApiEstacao,
   type ApiUser,
 } from "@/lib/api";
-import { StationCard } from "./StationCard";
+import { StationPicker } from "./StationPicker";
 
 export function LoginClient() {
   const router = useRouter();
@@ -214,25 +214,12 @@ export function LoginClient() {
           </div>
 
           <div className={"field" + (showErr("station") ? " invalid" : "")}>
-            <label>Estação</label>
-            <div className="station-grid">
-              {estacoes.map((s, index) => (
-                <StationCard
-                  key={s.id}
-                  station={s}
-                  index={index + 1}
-                  selected={station === s.id}
-                  onSelect={setStation}
-                />
-              ))}
-            </div>
-            <div className="help">
-              {loadingData
-                ? "Carregando estações…"
-                : estacoes.length === 0
-                ? "Nenhuma estação cadastrada. Fale com o supervisor."
-                : "Estações em cinza estão ocupadas por outros operadores."}
-            </div>
+            <StationPicker
+              stations={estacoes}
+              selectedId={station}
+              loading={loadingData}
+              onSelect={setStation}
+            />
             <div className="error">Escolha uma estação disponível.</div>
           </div>
 
