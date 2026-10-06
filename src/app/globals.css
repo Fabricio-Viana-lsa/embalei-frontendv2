@@ -2286,23 +2286,43 @@ button.temp-forecast--link:hover b { color: #0559c9; }
 
 .emb-kb-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--emb-tile-min), 1fr));
   grid-auto-rows: min-content;
   gap: 12px;
   /* Ocupa todo o espaço do modal e rola se houver muitas embalagens. */
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* Espaço interno pra os badges (contagem/remover) não serem cortados pela
-     rolagem da grade. */
+  /* Espaço interno pra o badge de contagem não ser cortado pela rolagem. */
   padding: 4px;
 }
 
+/* Áreas de toque do teclado de embalagens. Adicionar, remover e editar não se
+   sobrepõem: cada embalagem é um bloco com o botão de adicionar em cima e uma
+   barra de ações embaixo, separados por um vão que não aciona nada. Alvo
+   mínimo de 44px (48px em tela de toque). */
+.emb-kb {
+  --emb-hit: 44px;
+  --emb-hit-gap: 8px;
+  --emb-tile-min: 104px;
+}
+
+@media (pointer: coarse) {
+  .emb-kb { --emb-hit: 48px; }
+}
+
+@media (min-width: 900px) {
+  .emb-kb { --emb-tile-min: 128px; --emb-hit-gap: 10px; }
+}
+
 .emb-tile {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--emb-hit-gap);
 }
 
 .emb-tile-add {
+  position: relative;
   width: 100%;
   min-height: 75px;
   display: flex;
@@ -2310,13 +2330,14 @@ button.temp-forecast--link:hover b { color: #0559c9; }
   align-items: center;
   justify-content: center;
   gap: 3px;
-  /* topo maior pra acomodar os badges sobre a embalagem */
+  /* topo maior pra acomodar o badge de contagem */
   padding: 13px 5px 7px;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--line-2);
   background: var(--bg);
   color: var(--ink-2);
   cursor: pointer;
+  touch-action: manipulation;
   transition: border-color 0.12s, background 0.12s, transform 0.08s;
 }
 
@@ -2341,7 +2362,6 @@ button.temp-forecast--link:hover b { color: #0559c9; }
   position: absolute;
   top: 3px;
   right: 3px;
-  z-index: 2;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
@@ -2355,50 +2375,47 @@ button.temp-forecast--link:hover b { color: #0559c9; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   box-shadow: 0 1px 4px rgba(22, 163, 74, 0.4);
+  /* Só informa; o toque passa para o botão de adicionar. */
+  pointer-events: none;
+}
+
+.emb-tile-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--emb-hit-gap);
+}
+
+.emb-remove,
+.emb-edit {
+  min-height: var(--emb-hit);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  border: none;
+  color: white;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.08s, opacity 0.12s;
 }
 
 .emb-remove {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: none;
   background: var(--ink);
-  color: white;
-  font-size: 14px;
+  font-size: 22px;
+  font-weight: 700;
   line-height: 1;
-  cursor: pointer;
 }
-
-.emb-remove:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .emb-edit {
-  position: absolute;
-  bottom: 3px;
-  right: 3px;
-  z-index: 2;
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: none;
   background: var(--brand);
-  color: white;
-  cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 111, 238, 0.4);
-  transition: transform 0.08s;
 }
 
-.emb-edit:active { transform: scale(0.9); }
-.emb-edit:disabled { opacity: 0.4; cursor: not-allowed; }
+.emb-remove:active,
+.emb-edit:active { transform: scale(0.94); }
+
+.emb-remove:disabled,
+.emb-edit:disabled { opacity: 0.25; cursor: not-allowed; box-shadow: none; }
 
 /* Popup de quantidade da embalagem */
 .emb-qty-scrim {

@@ -91,6 +91,11 @@ export function EmbalagemKeyboard({
             // Mesmo no limite os tiles ficam no estado normal (mais visibilidade);
             // a adição extra é bloqueada em addEmbalagem com aviso.
             const disableAdd = finalizing;
+            // Adicionar, remover e editar são áreas de toque separadas, sem
+            // sobreposição: o "−" e o lápis ficam numa barra própria abaixo da
+            // embalagem, com um vão entre as áreas. O "−" fica sempre no mesmo
+            // lugar (desabilitado sem contagem) para a área de toque não mudar
+            // de posição depois do primeiro toque.
             return (
               <div key={embalagem.id} className={"emb-tile" + (count > 0 ? " emb-tile--active" : "")}>
                 <button
@@ -104,26 +109,26 @@ export function EmbalagemKeyboard({
                   <Icon.box width={20} height={20} />
                   <span className="emb-tile-name">{embalagem.name}</span>
                 </button>
-                {count > 0 && (
+                <div className="emb-tile-actions">
                   <button
                     type="button"
                     className="emb-remove"
                     onClick={() => onRemove(code)}
-                    disabled={finalizing}
-                    aria-label={`Remover ${embalagem.name}`}
+                    disabled={finalizing || count === 0}
+                    aria-label={`Remover uma unidade de ${embalagem.name}`}
                   >
                     −
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="emb-edit"
-                  onClick={() => openQtyPopup(embalagem, count)}
-                  disabled={finalizing}
-                  aria-label={`Definir quantidade de ${embalagem.name}`}
-                >
-                  <Icon.pencil width={11} height={11} />
-                </button>
+                  <button
+                    type="button"
+                    className="emb-edit"
+                    onClick={() => openQtyPopup(embalagem, count)}
+                    disabled={finalizing}
+                    aria-label={`Definir quantidade de ${embalagem.name}`}
+                  >
+                    <Icon.pencil width={14} height={14} />
+                  </button>
+                </div>
               </div>
             );
           })}
