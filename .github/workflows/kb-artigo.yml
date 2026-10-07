@@ -1,0 +1,160 @@
+# Cria um rascunho de Novidade na Base de Conhecimento a partir de cada PR
+# mesclada. Nada vai ao ar sozinho: o artigo nasce rascunho e um humano publica.
+#
+# Plano e decisões: base-conhecimento/docs/plano-automacao-artigos.md
+#
+# Configuração necessária neste repositório (NADA disso existe hoje aqui):
+#   secrets  CLAUDE_CODE_OAUTH_TOKEN, NEWS_TOKEN
+#   vars     NEWS_PUBLISH_URL   (https://<dominio>/api/news/draft)
+#            KB_ADMIN_URL       (https://<dominio>/admin/artigos)
+#   e o GitHub App da Claude instalado na org lojasantoantonio.
+name: Artigo na Base de Conhecimento
+
+# `pull_request_target` (e não `pull_request`) porque as PRs para a master
+# chegam também com head no fork (AdrianoAS:*), e nesse caso `pull_request`
+# roda sem secrets e com token só-leitura. É seguro aqui: o job exige
+# merged == true, então o código já está na master quando algo executa, e o
+# workflow lido é sempre o da master.
+#
+# `branches: [master]` filtra pelo ramo de DESTINO da PR — master é o default do
+# upstream lojasantoantonio/embalei-frontendv2. O fluxo do time é fork -> branch
+# homônima no upstream -> master (é exatamente o que o
+# `scripts/criar-branch-upstream.sh` monta), e as duas etapas são merges de PR:
+# sem esse filtro a mesma entrega gerava dois artigos (slug usa o número da PR,
+# então viravam dois rascunhos com o mesmo conteúdo). A entrega é o merge na
+# master; a etapa intermediária não gera nada.
+on:
+  pull_request_target:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# PRs diferentes escrevem em slugs diferentes, então correm em paralelo sem risco.
+concurrency:
+  group: kb-novidade-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  novidade:
+    # Fechar sem mesclar não gera artigo.
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SISTEMA: embalei
+      NOVIDADE_FILE: .kb-run/novidade.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Metadados da PR
+        env:
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p .kb-run
+          # Título e corpo da PR vão para arquivo, não para a linha de comando:
+          # texto de terceiro não entra em shell.
+          jq '.pull_request | {number, title, body, author: .user.login,
+                labels: [.labels[].name], merged_at, base: .base.ref}' \
+            "$GITHUB_EVENT_PATH" > .kb-run/pr.json
+          echo "PR #${PR_NUMERO} lida."
+
+      - name: Diff exato da PR
+        id: diff
+        env:
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          # refs/pull/<n>/head sobrevive à exclusão da branch e cobre squash,
+          # merge commit e rebase. `merge_commit_sha^1` não serve: em rebase
+          # pega só o último commit da série.
+          git fetch --no-tags origin "refs/pull/${PR_NUMERO}/head:pr-head"
+          BASE="$(git merge-base "${BASE_SHA}" pr-head)"
+          echo "range=${BASE}..pr-head" >> "$GITHUB_OUTPUT"
+          echo "Arquivos na PR: $(git diff --name-only "${BASE}..pr-head" | wc -l)"
+
+      - name: Instalar Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Gerar rascunho
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          RANGE: ${{ steps.diff.outputs.range }}
+        run: |
+          set -euo pipefail
+          HOJE="$(TZ=America/Sao_Paulo date +%d-%m-%Y)"
+          PROMPT=$(cat <<'EOF'
+          Você está rodando em CI (GitHub Actions), depois do merge, sem humano no loop.
+
+          1. Leia .kb/PROMPT-NOVIDADES.md e siga-o à risca.
+          2. Onde ele disser RANGE_DO_DIFF, use: RANGE_REAL
+          3. Onde ele disser ARQUIVO_DE_SAIDA, use: ARQUIVO_REAL
+          4. Onde ele disser DATA_DE_HOJE, use: DATA_REAL
+          EOF
+          )
+          PROMPT="${PROMPT//RANGE_REAL/$RANGE}"
+          PROMPT="${PROMPT//ARQUIVO_REAL/$NOVIDADE_FILE}"
+          PROMPT="${PROMPT//DATA_REAL/$HOJE}"
+
+          claude -p "$PROMPT" \
+            --model opus \
+            --max-turns 30 \
+            --permission-mode acceptEdits \
+            --allowedTools "Read,Grep,Glob,Write,Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+
+      - name: Prévia no resumo do job
+        if: always()
+        run: |
+          if [ -f "$NOVIDADE_FILE" ]; then
+            { echo '### Rascunho gerado'; echo '```json'; cat "$NOVIDADE_FILE"; echo '```'; } \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '### Nenhum rascunho gerado nesta entrega' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enviar para a Base
+        id: envio
+        env:
+          NEWS_PUBLISH_URL: ${{ vars.NEWS_PUBLISH_URL }}
+          NEWS_TOKEN: ${{ secrets.NEWS_TOKEN }}
+          NOVIDADE_SLUG: novidade-${{ env.SISTEMA }}-pr-${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: node .kb/publicar-novidade.mjs
+
+      - name: Avisar na PR
+        if: steps.envio.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+          SLUG: ${{ steps.envio.outputs.slug }}
+          PAINEL: ${{ vars.KB_ADMIN_URL }}
+        run: |
+          gh pr comment "$PR_NUMERO" --body "📝 Rascunho de **Novidade** criado na Base de Conhecimento a partir desta entrega.
+
+          Nada foi publicado: revise, ajuste a categoria e publique quando quiser.
+
+          - artigo: \`$SLUG\`
+          - painel: $PAINEL"
+
+      - name: Avisar falha na PR
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMERO: ${{ github.event.pull_request.number }}
+          EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh pr comment "$PR_NUMERO" --body "⚠️ A automação de documentação falhou nesta entrega e **o artigo não foi criado**.
+
+          Nada na Base foi alterado. Detalhes: $EXECUCAO"

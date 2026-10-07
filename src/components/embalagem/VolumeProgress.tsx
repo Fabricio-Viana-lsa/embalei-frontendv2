@@ -27,7 +27,7 @@ export function VolumeProgress({ scannedCount, totalVolumes }: Props) {
                 Volumes bipados
               </span>
               <span className="vol-progress-hint">
-                Bipe a NF-e para finalizar
+                Toque em “Confirmar volumes” para finalizar
               </span>
             </>
           ) : (

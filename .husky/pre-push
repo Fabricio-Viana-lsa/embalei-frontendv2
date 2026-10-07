@@ -1,0 +1,3 @@
+# Cria no upstream a branch homônima (vazia) da que está indo para o fork.
+# O stdin do hook traz as refs sendo enviadas; o script lê de lá.
+sh scripts/criar-branch-upstream.sh "$@" || true

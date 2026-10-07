@@ -92,6 +92,12 @@ export const Icon = {
       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
     </svg>
   ),
+  keyboard: (p: IconProps) => (
+    <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...p}>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+    </svg>
+  ),
   pkg: (p: IconProps) => (
     <svg viewBox="0 0 24 24" {...stroke} strokeWidth={1.8} {...p}>
       <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />

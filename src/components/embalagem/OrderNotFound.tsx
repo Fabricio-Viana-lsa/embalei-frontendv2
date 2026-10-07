@@ -3,13 +3,20 @@ interface Props {
   code: string | null;
 }
 
-// Feedback visual quando a consulta da chave da NF-e não retorna um pedido
-// (não encontrado / erro na IDWorks). Substitui o toast de erro: fica fixo na
-// área principal até o operador bipar a chave novamente.
+// Códigos maiores que isso (ex.: chave da NF-e, 44 dígitos) são abreviados;
+// números de pedido cabem inteiros.
+const MAX_FULL_CODE_LENGTH = 20;
+
+function abbreviateCode(code: string): string {
+  if (code.length <= MAX_FULL_CODE_LENGTH) return code;
+  return `${code.slice(0, 8)}…${code.slice(-6)}`;
+}
+
+// Feedback visual quando a consulta da chave da NF-e ou do número do pedido
+// não retorna um pedido (não encontrado / erro na IDWorks). Substitui o toast
+// de erro: fica fixo na área principal até o operador bipar novamente.
 export function OrderNotFound({ message, code }: Props) {
-  const shortCode = code
-    ? `${code.slice(0, 8)}…${code.slice(-6)}`
-    : null;
+  const shortCode = code ? abbreviateCode(code) : null;
 
   return (
     <div className="order-notfound" role="alert" aria-live="assertive">
@@ -55,7 +62,7 @@ export function OrderNotFound({ message, code }: Props) {
       {shortCode && <code className="onf-key">{shortCode}</code>}
 
       <div className="onf-hint">
-        Confira a etiqueta e bipe a chave de acesso novamente.
+        Confira a etiqueta e bipe a chave de acesso ou o número do pedido novamente.
       </div>
     </div>
   );
