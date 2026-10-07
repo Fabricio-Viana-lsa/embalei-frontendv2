@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Input } from "@heroui/react";
 import { Icon } from "@/components/icons";
+import { isEditableTarget, isOtherFieldFocused } from "@/lib/focus";
 import { ScannerIllus, type ScannerVariant } from "./ScannerIllus";
 
 interface Props {
@@ -44,7 +45,7 @@ export function ScanStrip({
   scannerVariant,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const refocusTimer = useRef<number | null>(null);
+  const rearmTimer = useRef<number | null>(null);
   const [value, setValue] = useState("");
   // Digitação manual (chave da NF-e ou número do pedido) quando o leitor não
   // consegue ler a etiqueta. Enquanto aberta, o input fica visível e o foco
@@ -65,34 +66,16 @@ export function ScanStrip({
     window.setTimeout(() => vk.hide?.(), 200);
   }, []);
 
-  const focusInput = useCallback(() => {
-    if (isManualEntryOpenRef.current) return;
-    const el = inputRef.current;
-    if (!el || !el.isConnected || document.visibilityState !== "visible") return;
-    try {
-      hideVirtualKeyboard();
-      el.focus({ preventScroll: true });
-      hideVirtualKeyboard();
-    } catch {
-      /* foco indisponível neste instante — ignora */
-    }
-  }, [hideVirtualKeyboard]);
-
-  const scheduleRefocus = useCallback(() => {
-    if (refocusTimer.current !== null) window.clearTimeout(refocusTimer.current);
-    refocusTimer.current = window.setTimeout(() => {
-      refocusTimer.current = null;
-      focusInput();
-    }, 0);
-  }, [focusInput]);
-
-  // Sequência de mount/retomada: setamos inputmode="none" antes de focar para
-  // o Android NÃO abrir o teclado virtual. Logo após o foco, restauramos
+  // Único caminho de foco do leitor: setamos inputmode="none" antes de focar
+  // para o Android NÃO abrir o teclado virtual. Logo após o foco, restauramos
   // inputmode normal — o scanner do coletor volta a entregar os caracteres.
+  // Cede a vez quando outro campo está em uso (ex.: quantidade da embalagem),
+  // senão o teclado desse campo fecha logo depois de abrir.
   const armScannerInput = useCallback(() => {
     if (isManualEntryOpenRef.current) return;
     const el = inputRef.current;
     if (!el || !el.isConnected || document.visibilityState !== "visible") return;
+    if (isOtherFieldFocused(el)) return;
     el.setAttribute("inputmode", "none");
     hideVirtualKeyboard();
     try {
@@ -114,24 +97,38 @@ export function ScanStrip({
       if (document.visibilityState === "visible") armScannerInput();
     };
     // Qualquer toque na tela pode reabrir o teclado (Android abre o IME ao
-    // tocar num input focado). Re-armamos sempre após o toque.
-    const onPointer = () => {
-      window.setTimeout(armScannerInput, 0);
+    // tocar num input focado). Re-armamos após o toque — menos quando o toque
+    // é num campo de texto, que precisa receber o foco e o teclado.
+    const onPointer = (event: Event) => {
+      if (isEditableTarget(event.target)) return;
+      scheduleArm();
+    };
+    // Quando qualquer elemento perde o foco (o próprio leitor ao tocar num
+    // botão, ou o campo de quantidade ao fechar), o leitor volta a ser armado.
+    const onFocusOut = () => scheduleArm();
+    const scheduleArm = () => {
+      if (rearmTimer.current !== null) window.clearTimeout(rearmTimer.current);
+      rearmTimer.current = window.setTimeout(() => {
+        rearmTimer.current = null;
+        armScannerInput();
+      }, 0);
     };
     window.addEventListener("focus", armScannerInput);
     window.addEventListener("pageshow", armScannerInput);
     document.addEventListener("visibilitychange", onVisibility);
     document.addEventListener("pointerdown", onPointer, true);
     document.addEventListener("touchstart", onPointer, true);
+    document.addEventListener("focusout", onFocusOut);
     return () => {
       window.removeEventListener("focus", armScannerInput);
       window.removeEventListener("pageshow", armScannerInput);
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("pointerdown", onPointer, true);
       document.removeEventListener("touchstart", onPointer, true);
-      if (refocusTimer.current !== null) {
-        window.clearTimeout(refocusTimer.current);
-        refocusTimer.current = null;
+      document.removeEventListener("focusout", onFocusOut);
+      if (rearmTimer.current !== null) {
+        window.clearTimeout(rearmTimer.current);
+        rearmTimer.current = null;
       }
     };
   }, [armScannerInput]);
@@ -170,7 +167,7 @@ export function ScanStrip({
       if (code) closeManualEntry();
       return;
     }
-    focusInput();
+    armScannerInput();
   };
 
   return (
@@ -192,7 +189,6 @@ export function ScanStrip({
             placeholder="Chave da NF-e ou número do pedido"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onBlur={scheduleRefocus}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"

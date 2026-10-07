@@ -315,33 +315,39 @@ export function EmbalagemClient() {
   };
 
   // Remove a última ocorrência daquele código (para trocar de embalagem).
+  // Sempre a partir do estado mais recente: toques rápidos seguidos não podem
+  // ler a mesma lista e remover uma vez só.
   const removeEmbalagem = (code: string) => {
     if (finalizing) return;
-    const index = boxScanCodes.lastIndexOf(code);
-    if (index === -1) return;
-    const next = boxScanCodes.slice();
-    next.splice(index, 1);
-    setBoxScanCodes(next);
+    setBoxScanCodes((codes) => {
+      const index = codes.lastIndexOf(code);
+      if (index === -1) return codes;
+      const next = codes.slice();
+      next.splice(index, 1);
+      return next;
+    });
   };
 
   const setEmbalagemQuantity = (code: string, quantity: number) => {
     if (finalizing) return;
     const clamped = Math.max(0, Math.floor(quantity));
-    let kept = 0;
-    const next: string[] = [];
-    for (const current of boxScanCodes) {
-      if (current !== code) {
-        next.push(current);
-      } else if (kept < clamped) {
-        next.push(current);
+    setBoxScanCodes((codes) => {
+      let kept = 0;
+      const next: string[] = [];
+      for (const current of codes) {
+        if (current !== code) {
+          next.push(current);
+        } else if (kept < clamped) {
+          next.push(current);
+          kept += 1;
+        }
+      }
+      while (kept < clamped) {
+        next.push(code);
         kept += 1;
       }
-    }
-    while (kept < clamped) {
-      next.push(code);
-      kept += 1;
-    }
-    setBoxScanCodes(next);
+      return next;
+    });
   };
 
   const handlePickItem = (idSku: string) => {

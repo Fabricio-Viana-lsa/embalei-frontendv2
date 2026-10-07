@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { ApiEmbalagem } from "@/lib/api";
 import { Icon } from "@/components/icons";
 
@@ -45,13 +46,23 @@ export function EmbalagemKeyboard({
 
   const [editing, setEditing] = useState<ApiEmbalagem | null>(null);
   const [qtyInput, setQtyInput] = useState("");
+  const qtyInputRef = useRef<HTMLInputElement>(null);
 
+  // O campo é montado e focado DENTRO do toque no lápis (flushSync): fora do
+  // gesto do usuário o iOS não abre o teclado, e o autoFocus chegava tarde.
   const openQtyPopup = (embalagem: ApiEmbalagem, currentCount: number) => {
-    setEditing(embalagem);
-    setQtyInput(String(currentCount));
+    flushSync(() => {
+      setEditing(embalagem);
+      setQtyInput(String(currentCount));
+    });
+    qtyInputRef.current?.focus();
+    qtyInputRef.current?.select();
   };
 
+  // Tirar o foco antes de desmontar dispara o focusout que devolve o foco ao
+  // leitor de código (elemento removido focado não avisa ninguém).
   const closeQtyPopup = () => {
+    qtyInputRef.current?.blur();
     setEditing(null);
     setQtyInput("");
   };
@@ -158,12 +169,12 @@ export function EmbalagemKeyboard({
           <div className="emb-qty-pop" onClick={(e) => e.stopPropagation()}>
             <div className="emb-qty-title">Quantidade · {editing.name}</div>
             <input
+              ref={qtyInputRef}
               className="emb-qty-input"
               type="number"
               inputMode="numeric"
               min={0}
               value={qtyInput}
-              autoFocus
               onChange={(e) => setQtyInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveQty();
